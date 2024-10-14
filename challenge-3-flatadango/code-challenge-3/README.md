@@ -22,7 +22,7 @@ $ json-server --watch db.json
 
 Test your server by visiting this route in the browser:
 
-[http://localhost:3000/films](http://localhost:3000/films)
+[json-server --watch db.json](json-server --watch db.json)
 
 Then, open the `index.html` file on your browser to run the application.
 

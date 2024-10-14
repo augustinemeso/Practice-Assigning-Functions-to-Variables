@@ -1,100 +1,197 @@
-// Your code here// Base URL for the API
-const BASE_URL = 'http://localhost:3000/films';
+document.addEventListener('DOMContentLoaded', () => {
+  const itemList = document.getElementById('films');
+  const apiEndpoint = 'http://localhost:3000/films'; // the endpoint from the json-server
+  // const title = document.getElementById('title');
+  
 
-// Fetch and display the first movie's details
-function fetchFirstMovie() {
-  fetch(`${BASE_URL}/1`)
-    .then(response => response.json())
-    .then(data => {
-      displayMovieDetails(data);
-    })
-    .catch(error => console.error('Error fetching the first movie:', error));
-}
 
-// Fetch and display the list of movies
-function fetchMovies() {
-  fetch(BASE_URL)
-    .then(response => response.json())
-    .then(movies => {
-      populateMovieList(movies);
-    })
-    .catch(error => console.error('Error fetching movies:', error));
-}
+  fetch(apiEndpoint) // featch all the data from the API
+      .then(response => {
+          if (!response.ok) {
+              throw new Error('Network response was not ok');
+          }
+          return response.json();
+      })
+      .then(data => {
+          data.forEach(item => {
+              const remainingTickets = item.capacity - item.tickets_sold;
 
-// Populate the movie list
-function populateMovieList(movies) {
-  const filmList = document.getElementById('films');
-  filmList.innerHTML = ''; // Clear any existing content
+              const li = document.createElement('li'); // create the movie item with the class
+              li.classList.add("film", "list");
+              li.setAttribute("id", item.id);
+              if (remainingTickets === 0) li.classList.add("sold-out")
+              // iterating all the movies in the array
+              li.innerHTML = '<a href="javascript:getMovie('+item.id+')">' + item.title + '</a> : <a href="javascript:deleteMovie(' + item.id + ')" class="ui orange button"> Delete </a>';
+              itemList.appendChild(li);
+          });
+      })
+      .catch(error => {
+          console.error('There was a problem from the api:', error);
+          const li = document.createElement('li');
+          li.textContent = 'Problem loading items';
+          itemList.appendChild(li);
+      });
 
-  movies.forEach(movie => {
-    const movieItem = document.createElement('li');
-    movieItem.className = 'film item';
-    movieItem.textContent = movie.title;
-    movieItem.addEventListener('click', () => displayMovieDetails(movie));
-    filmList.appendChild(movieItem);
-  });
-}
+      getMovie(1);
+});
 
-// Display the movie details
-function displayMovieDetails(movie) {
+function getMovie(movieId) {
+  const apiEndpoint = 'http://localhost:3000/films/' + movieId;
   const poster = document.getElementById('poster');
-  const title = document.getElementById('title');
   const runtime = document.getElementById('runtime');
+  const title = document.getElementById('title');
   const filmInfo = document.getElementById('film-info');
   const showtime = document.getElementById('showtime');
   const ticketNum = document.getElementById('ticket-num');
-  const buyTicketButton = document.getElementById('buy-ticket');
+  const buyTicket = document.getElementById('buy-ticket');    
+  
+  fetch(apiEndpoint) // featch all the data from the API
+      .then(response => {
+          if (!response.ok) {
+              throw new Error('Network response was not ok');
+          }
+          return response.json();
+      })
+      .then(data => {
+          const remainingTickets = data["capacity"] - data["tickets_sold"];
+          title.textContent = data["title"] || JSON.stringify(data["title"]);
+          runtime.textContent = data["runtime"] || JSON.stringify(data["runtime"] ) + "minutes";
+          filmInfo.textContent = data["description"] || JSON.stringify(data["description"]);
+          showtime.textContent = data["showtime"] || JSON.stringify(data["showtime"]);
+          ticketNum.textContent = remainingTickets
+          poster.src = data["poster"] || JSON.stringify(data["poster"]);
 
-  poster.src = movie.poster;
-  title.textContent = movie.title;
-  runtime.textContent = `${movie.runtime} minutes`;
-  filmInfo.textContent = movie.description;
-  showtime.textContent = movie.showtime;
-  const availableTickets = movie.capacity - movie.tickets_sold;
-  ticketNum.textContent = `${availableTickets} remaining tickets`;
+          if (remainingTickets === 0){
+              buyTicket.textContent = "Sold Out";
+          }
+          else {
+              buyTicket.textContent = "Buy Ticket";
+              buyTicket.setAttribute("data_id", data["id"]);
+              buyTicket.setAttribute("data_tickets", data["tickets_sold"])
+          }
+      })
+      .catch(error => {
+          console.error('There was a problem from the api:', error);
+          const li = document.createElement('li');
+          li.textContent = 'Problem loading items';
+          itemList.appendChild(li);
+      });
 
-  buyTicketButton.textContent = 'Buy Ticket'; // Reset button text
-  buyTicketButton.disabled = availableTickets === 0; // Disable if sold out
-
-  // Add event listener for buying a ticket
-  buyTicketButton.onclick = () => buyTicket(movie);
 }
 
-// Buy a ticket
-function buyTicket(movie) {
-  const availableTickets = movie.capacity - movie.tickets_sold;
-  if (availableTickets > 0) {
-    // Update the number of tickets sold
-    const updatedTicketsSold = movie.tickets_sold + 1;
+function updataMovie(movieId, tickets_sold){
 
-    // Send a PATCH request to update the server
-    fetch(`${BASE_URL}/${movie.id}`, {
+  endpointUrl = 'http://localhost:3000/films/' + movieId
+  tickets_sold = parseInt(tickets_sold)
+
+  const requestBody = {
+      tickets_sold: tickets_sold + 1
+  };
+
+  // define options and headers
+  const fetchOptions = {
       method: 'PATCH',
       headers: {
-        'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ tickets_sold: updatedTicketsSold })
-    })
-    .then(response => response.json())
-    .then(updatedMovie => {
-      // Update the frontend with the new number of tickets
-      movie.tickets_sold = updatedMovie.tickets_sold;
-      displayMovieDetails(movie);
+      body: JSON.stringify(requestBody)
+  };
 
-      // Check if tickets are sold out
-      if (updatedMovie.capacity - updatedMovie.tickets_sold === 0) {
-        const buyTicketButton = document.getElementById('buy-ticket');
-        buyTicketButton.textContent = 'Sold Out';
-        buyTicketButton.disabled = true;
-      }
-    })
-    .catch(error => console.error('Error updating ticket count:', error));
-  }
+  // Make the PATCH request
+  return fetch(endpointUrl, fetchOptions)
+      .then(response => {
+          if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          return response.json();
+      })
+      .then(data => {
+          console.log('Patch successful:', data);
+          document.getElementById('ticket-num').textContent = data["capacity"] - data["tickets_sold"]
+      })
+      .catch(error => {
+          console.error('There was a problem with the patch operation:', error);
+          throw error;
+      });
 }
 
-// Initial load: Fetch the first movie and list of movies
-document.addEventListener('DOMContentLoaded', () => {
-  fetchFirstMovie();
-  fetchMovies();
+function addTicket(movieId){
+
+  endpointUrl = 'http://localhost:3000/tickets'
+
+  const requestBody = {
+      film_id: movieId,
+      number_of_tickets: 1
+  };
+
+  // define options and headers
+  const fetchOptions = {
+      method: 'POST',
+      headers: {
+          'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody)
+  };
+
+  // Make the PATCH request
+  return fetch(endpointUrl, fetchOptions)
+      .then(response => {
+          if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          return response.json();
+      })
+      .then(data => {
+          console.log('Patch successful:', data);
+      })
+      .catch(error => {
+          console.error('There was a problem with the patch operation:', error);
+          throw error;
+      });
+}
+
+function deleteMovie(movieId){
+
+  const itemList = document.getElementById('films');
+  endpointUrl = 'http://localhost:3000/films/' + movieId
+
+  // define options and headers
+  const fetchOptions = {
+      method: 'DELETE',
+      headers: {
+          'Content-Type': 'application/json',
+      }
+  };
+
+  // Make the PATCH request
+  return fetch(endpointUrl, fetchOptions)
+      .then(response => {
+          if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          return response.json();
+      })
+      .then(data => {
+          item = document.getElementById(movieId);
+          item.remove()
+      })
+      .catch(error => {
+          console.error('There was a problem with the patch operation:', error);
+          throw error;
+      });
+}
+
+$("#buy-ticket").click(function(){
+  const id =document.getElementById("buy-ticket").getAttribute("data_id");
+  const tickets_sold =document.getElementById("buy-ticket").getAttribute("data_tickets");
+
+  updataMovie(id, tickets_sold);
+  addTicket(id);
 });
 
+$(".delete-btn").click(function(){
+  alert("tell me")
+  const id = $(this).data('id')
+  console.log(id)
+// deleteMovie(id)
+});
